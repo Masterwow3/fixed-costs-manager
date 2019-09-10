@@ -24,7 +24,7 @@ Built with:
 - Webpack for bundling and asset management.
 
 Application icon:
-
+https://www.flaticon.com/free-icon/bank_755195#term=finance&page=1&position=4
 Icon from www.flaticon.com.
 
 Theme:

@@ -1,0 +1,21 @@
+﻿@inherits LayoutComponentBase
+<div id="wrapper">
+    <Sidebar />
+    <div id="content-wrapper" class="d-flex flex-column">
+        <div id="content">
+            <Topbar />
+            <!-- Begin Page Content -->
+            <div class="container-fluid">
+                @Body
+            </div>
+        </div>
+        <Footer />
+    </div>
+</div>
+
+<!-- Scroll to Top Button-->
+<a class="scroll-to-top rounded" href="#page-top">
+    <i class="fas fa-angle-up"></i>
+</a>
+
+<fixed_costs_manager.Client.Pages.Views.Logout.Logout />
