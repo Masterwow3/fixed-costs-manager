@@ -1,10 +1,21 @@
 ﻿@page "/counter"
 
-<h1>Counter</h1>
+<!-- Content Row -->
+<div class="row">
+    <!-- Approach -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Test</h6>
+            </div>
+            <div class="card-body">
+                <p>Current count: @currentCount</p>
+                <button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
 
-<p>Current count: @currentCount</p>
-
-<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
     int currentCount = 0;
