@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,14 +26,19 @@ namespace fixed_costs_manager.Server
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+            });
+
             app.UseResponseCompression();
 
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
                 app.UseBlazorDebugging();
-            }
-
+            }            
+            
             app.UseStaticFiles();
             app.UseClientSideBlazorFiles<Client.Startup>();
 
