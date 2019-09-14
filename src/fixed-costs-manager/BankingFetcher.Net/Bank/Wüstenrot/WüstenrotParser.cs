@@ -13,13 +13,14 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
 {
     class WüstenrotParser : IDisposable
     {
+        private readonly Func<int> _getTan;
         private ChromeDriver _driver;
         private bool _loginSuceeded;
 
-        public WüstenrotParser()
+        public WüstenrotParser(Func<int> getTan)
         {
+            _getTan = getTan;
             _driver = new ChromeDriver();
-           
         }
 
         public void Login(string user, string password)
@@ -34,12 +35,15 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
             //To submit form.
             //You can use any other Input field's(First Name, Last Name etc.) xpath too In bellow given syntax.
             _driver.FindElement(By.Id("xview-anmelden")).Click();
+
+            EnterTan();
         }
 
-        public void TwoFactorLogin(string tan)
+        private void EnterTan()
         {
+            var tan = _getTan.Invoke();
             //txtTan
-            _driver.FindElement(By.Id("txtTan")).SendKeys(tan);
+            _driver.FindElement(By.Id("txtTan")).SendKeys(tan.ToString());
             _driver.FindElement(By.Id("xview-weiter")).Click();
         }
 
@@ -58,16 +62,8 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
                 //no element on this site, all fine. Method end
             }
 
-            //wait until site was loaded
-            for (int i = 0; 
-                i < 4 && !_driver.FindElements(By.XPath("//div[@class='v-scrollable v-table-body-wrapper v-table-body']")).Any();
-                i++)
-            {
-                await Task.Delay(500);
-            }
-
-            if (!_driver.FindElements(By.XPath("//div[@class='v-scrollable v-table-body-wrapper v-table-body']")).Any())
-                throw new Exception("Error loading financial status page");
+            await WaitUntilElementIsAvailable(
+                By.XPath("//div[@class='v-scrollable v-table-body-wrapper v-table-body']"));
 
             _loginSuceeded = true;
         }
@@ -76,8 +72,10 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
         {
             var accounts = new List<Account>();
             var table = _driver.FindElement(By.XPath("//div[@class='v-scrollable v-table-body-wrapper v-table-body']"));
-            foreach (var row in table.FindElements(By.ClassName("v-table-row")))
+            var rows = table.FindElements(By.ClassName("v-table-row"));
+            for (var index = 0; index < rows.Count; index++)
             {
+                var row = rows[index];
                 var data = row.FindElements(By.ClassName("v-table-cell-wrapper"));
                 var name = data[0].Text;
                 var accountNr = data[1].Text;
@@ -91,25 +89,53 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
                     Number = accountNr,
                     Balance = balance
                 });
+
+                if(index+1 < rows.Count) //navigate back if there is a next row available
+                    await SwitchToAccountOverview();
             }
 
             return accounts;
         }
 
+        private async Task WaitUntilElementIsAvailable(By by)
+        {
+            //wait until site was loaded
+            for (int i = 0;
+                i < 20 && !_driver.FindElements(by).Any();
+                i++)
+            {
+                await Task.Delay(500);
+            }
+            if (!_driver.FindElements(by).Any())
+                throw new Exception("Timeout in check element is available");
+        }
         private async Task<string> GetRevenues(IWebElement accountRow)
         {
-            // select the drop down list
+            
+
             var education = accountRow.FindElement(By.ClassName("v-select-select"));
-            //create select element object 
             var selectElement = new SelectElement(education);
+            selectElement.SelectByValue("2"); //Go to revenues
 
-            //select by value
-            selectElement.SelectByValue("2");
+            await WaitUntilElementIsAvailable(By.Id("chcZeitraum"));
 
+            education = _driver.FindElement(By.Id("chcZeitraum"));
+            selectElement = new SelectElement(education);
+            selectElement.SelectByValue("6"); //All revenues
+            
+            _driver.FindElement(By.Id("actSuchen")).Click(); //search
 
+            EnterTan();
 
+            //TODO fix submit
+            //navigate to export as csv
+            //class Submitlink TextButton //value Exportieren
+            var test = _driver.FindElements(By.XPath("//input[@class='Submitlink TextButton']")).First(x=>x.GetAttribute("value") == "Exportieren");
+                test.Submit();
+            
 
-            await SwitchToAccountOverview();
+            //click export button
+            _driver.FindElement(By.Id("xview-export")).Click();
 
             return null; //TODO finsih
         }
@@ -118,18 +144,9 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
         {
             //click Übersicht
             _driver.FindElement(By.CssSelector("li[data-nav=uebersicht]")).Click();
-
+            
             //back to account overview
-            //wait until site was loaded
-            for (int i = 0;
-                i < 4 && !_driver.FindElements(By.XPath("//div[@class='v-scrollable v-table-body-wrapper v-table-body']")).Any();
-                i++)
-            {
-                await Task.Delay(500);
-            }
-
-            if (!_driver.FindElements(By.XPath("//div[@class='v-scrollable v-table-body-wrapper v-table-body']")).Any())
-                throw new Exception("Error loading financial status page");
+            await WaitUntilElementIsAvailable(By.XPath("//div[@class='v-scrollable v-table-body-wrapper v-table-body']"));
         }
 
         private void Logout()
