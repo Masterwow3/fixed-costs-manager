@@ -9,11 +9,12 @@ namespace BankingFetcher.Net.Test.Tests
         [TestMethod]
         public void LoginTest()
         {
-
             using (var test = new WüstenrotParser())
             {
                 test.Login(SensitiveDataConfig.Wüstenrot.Username, SensitiveDataConfig.Wüstenrot.Password);
-                test.TwoFactorLogin("");
+                test.TwoFactorLogin("791628");
+                test.SkipMessages().Wait();
+                var accounts = test.GetAccounts().Result;
             }
         }
     }
