@@ -349,3 +349,4 @@ healthchecksdb
 MigrationBackup/
 src/fixed-costs-manager/BankingFetcher.Test/SensitiveData.json
 src/fixed-costs-manager/BankingFetcher.Test/Config/SensitiveData.json
+src/fixed-costs-manager/BankingFetcher.Net.Test/Config/SensitiveData.json

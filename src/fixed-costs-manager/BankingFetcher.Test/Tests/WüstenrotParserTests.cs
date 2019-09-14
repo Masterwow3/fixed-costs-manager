@@ -1,4 +1,4 @@
-using BankingFetcher.Bank.Wüstenrot;
+using BankingFetcher.Net.Bank.Wüstenrot;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace BankingFetcher.Test.Tests
