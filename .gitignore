@@ -347,3 +347,5 @@ healthchecksdb
 
 # Backup folder for Package Reference Convert tool in Visual Studio 2017
 MigrationBackup/
+src/fixed-costs-manager/BankingFetcher.Test/SensitiveData.json
+src/fixed-costs-manager/BankingFetcher.Test/Config/SensitiveData.json
