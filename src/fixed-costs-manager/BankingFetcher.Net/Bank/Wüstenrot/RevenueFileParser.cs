@@ -55,9 +55,7 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
                     BookingDay = DateTime.Parse(columns[0]),
                     Valuta = DateTime.Parse(columns[1]),
                     SoldToPartyOrPayee = columns[2],
-                    IsMeSoldToPartyOrPayee = columns[2] == AccountHolder, //TODO Fix is me by validate iban
                     RecipientOrPayer = columns[3],
-                    IsMeRecipientOrPayer = columns[3] == AccountHolder, //TODO Fix is me by validate iban
                     PurposeOfUse = columns[8],
                     Revenue = Convert.ToDecimal((columns[12] == "S" ? "-" : "") + columns[11])
                 });
