@@ -41,6 +41,12 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
             options.AddUserProfilePreference("profile.default_content_settings.popups", 0);
             options.AddUserProfilePreference("download.default_directory", _downloadDirectory);
             options.LeaveBrowserRunning = true;
+
+            //silent start
+            options.AddArgument("headless");
+            ChromeDriverService service = ChromeDriverService.CreateDefaultService();
+            service.HideCommandPromptWindow = true;
+            //start chrome
             _driver = new ChromeDriver(options);
         }
 
