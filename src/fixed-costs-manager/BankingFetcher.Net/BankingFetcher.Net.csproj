@@ -51,6 +51,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Bank\Account.cs" />
+    <Compile Include="Bank\RevenueEntry.cs" />
     <Compile Include="Bank\Wüstenrot\WüstenrotParser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

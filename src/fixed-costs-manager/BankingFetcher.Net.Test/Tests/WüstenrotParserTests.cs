@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Linq;
+using BankingFetcher.Net.Bank;
 using BankingFetcher.Net.Bank.Wüstenrot;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -9,17 +12,20 @@ namespace BankingFetcher.Net.Test.Tests
         [TestMethod]
         public void LoginTest()
         {
+            var accounts = new List<Account>();
             using (var test = new WüstenrotParser(GetCurrentTan))
             {
                 test.Login(SensitiveDataConfig.Wüstenrot.Username, SensitiveDataConfig.Wüstenrot.Password);
                 test.SkipMessages().Wait();
-                var accounts = test.GetAccounts().Result;
+                accounts.AddRange(test.GetAccounts().Result);
             }
+
+            Assert.IsTrue(accounts.Any());
         }
 
-        private int GetCurrentTan()
+        private string GetCurrentTan()
         {
-            return 017510;
+            return "232655"; //TODO handle wrong tan
         }
     }
 }

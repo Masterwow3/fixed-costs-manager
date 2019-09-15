@@ -1,11 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Remote;
 using OpenQA.Selenium.Support.UI;
 
 [assembly: InternalsVisibleTo("BankingFetcher.Net.Test")]
@@ -13,22 +17,36 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
 {
     class WüstenrotParser : IDisposable
     {
-        private readonly Func<int> _getTan;
+        private readonly Func<string> _getTan;
         private ChromeDriver _driver;
         private bool _loginSuceeded;
+        private readonly string _downloadDirectory;
 
-        public WüstenrotParser(Func<int> getTan)
+        public WüstenrotParser(Func<string> getTan)
         {
             _getTan = getTan;
-            _driver = new ChromeDriver();
+            _downloadDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Downloads", Path.GetRandomFileName());
+            InitializeChrome();
+        }
+
+        private void InitializeChrome()
+        {
+            if (Directory.Exists(_downloadDirectory))
+                Directory.Delete(_downloadDirectory, true);
+            Directory.CreateDirectory(_downloadDirectory);
+
+            ChromeOptions options = new ChromeOptions();
+            options.AddLocalStatePreference("profile.default_content_settings.popups", 0);
+            options.AddLocalStatePreference("download.default_directory", _downloadDirectory);
+            options.AddUserProfilePreference("profile.default_content_settings.popups", 0);
+            options.AddUserProfilePreference("download.default_directory", _downloadDirectory);
+            options.LeaveBrowserRunning = true;
+            _driver = new ChromeDriver(options);
         }
 
         public void Login(string user, string password)
         {
             _driver.Navigate().GoToUrl("https://www.banking-wuestenrotdirect.de/banking-private/entry");
-            //the driver can now provide you with what you need (it will execute the script)
-            //get the source of the page
-            var source = _driver.PageSource;
             //fully navigate the dom
             _driver.FindElement(By.Id("txtBenutzerkennung")).SendKeys(user);
             _driver.FindElement(By.Id("pwdPin")).SendKeys(password);
@@ -41,10 +59,23 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
 
         private void EnterTan()
         {
-            var tan = _getTan.Invoke();
+            var tan = _getTan.Invoke()?.Trim();
+            //validate
+            if (tan == null || tan.Length != 6)
+                throw new Exception("The tan must consist of 6 numbers");
+            Match match = Regex.Match(tan, @"^[0-9]*$");
+            if (!match.Success)
+                throw new Exception("The tan may consist only of numbers");
+
+            if (!_driver.FindElements(By.Id("txtTan")).Any())
+                throw new Exception("An error has occurred while entering Tan, please test the login manually at your bank.");
+
             //txtTan
             _driver.FindElement(By.Id("txtTan")).SendKeys(tan.ToString());
             _driver.FindElement(By.Id("xview-weiter")).Click();
+
+            if (_driver.FindElements(By.Id("errorMessages")).Any())
+                throw new Exception("Invalid tan. Please restart the process.");
         }
 
         public async Task SkipMessages()
@@ -82,15 +113,16 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
                 Regex digitsOnly = new Regex(@"[^\d\.\,\-]");
                 var balance = Convert.ToDecimal(digitsOnly.Replace(data[2].Text, ""));
 
-                var revenues = await GetRevenues(row);
-                accounts.Add(new Account()
+                var revenuesData = await GetRevenues(row);
+                accounts.Add(new Account(revenuesData.Revenues)
                 {
                     Name = name,
                     Number = accountNr,
-                    Balance = balance
+                    Balance = balance,
+                    AccountHolder = revenuesData.AccountHolder
                 });
 
-                if(index+1 < rows.Count) //navigate back if there is a next row available
+                if (index + 1 < rows.Count) //navigate back if there is a next row available
                     await SwitchToAccountOverview();
             }
 
@@ -109,10 +141,28 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
             if (!_driver.FindElements(by).Any())
                 throw new Exception("Timeout in check element is available");
         }
-        private async Task<string> GetRevenues(IWebElement accountRow)
+        private async Task WaitUntilDownloadFileIsAvailable(string endsWith)
         {
-            
+            Func<bool> isFileAvailable = () =>
+            {
+                var files = Directory.GetFiles(_downloadDirectory);
+                if (!files.Any(x => x.EndsWith(endsWith)))
+                    return false;
+                return true;
+            };
 
+            //wait until site was loaded
+            for (int i = 0;
+                i < 20 && !isFileAvailable.Invoke();
+                i++)
+            {
+                await Task.Delay(500);
+            }
+            if (!isFileAvailable.Invoke())
+                throw new Exception("Timeout reached in wait for download file");
+        }
+        private async Task<(List<RevenueEntry> Revenues, string AccountHolder)> GetRevenues(IWebElement accountRow)
+        {
             var education = accountRow.FindElement(By.ClassName("v-select-select"));
             var selectElement = new SelectElement(education);
             selectElement.SelectByValue("2"); //Go to revenues
@@ -122,29 +172,79 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
             education = _driver.FindElement(By.Id("chcZeitraum"));
             selectElement = new SelectElement(education);
             selectElement.SelectByValue("6"); //All revenues
-            
+
             _driver.FindElement(By.Id("actSuchen")).Click(); //search
 
             EnterTan();
 
-            //TODO fix submit
             //navigate to export as csv
-            //class Submitlink TextButton //value Exportieren
-            var test = _driver.FindElements(By.XPath("//input[@class='Submitlink TextButton']")).First(x=>x.GetAttribute("value") == "Exportieren");
-                test.Submit();
-            
+            var test = _driver.FindElement(By.XPath("//input[@class='Submitlink ImageButton']"));
+            test.Click();
 
             //click export button
             _driver.FindElement(By.Id("xview-export")).Click();
+            //wait for download
+            var revenues = await ReadRevenuesFile();
+            return revenues;
+        }
 
-            return null; //TODO finsih
+        private async Task<(List<RevenueEntry> Revenues, string AccountHolder)> ReadRevenuesFile()
+        {
+            await WaitUntilDownloadFileIsAvailable(".csv");
+            var files = Directory.GetFiles(_downloadDirectory);
+            if (!files.Any())
+                return (null, null);
+            var csvFilePath = files.First(x => x.ToLower().EndsWith(".csv"));
+
+            var csv = File.ReadAllText(csvFilePath, Encoding.Default);
+            File.Delete(csvFilePath);
+
+            string accountHolder = "";
+            foreach (var row in csv.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!row.Contains("Kontoinhaber:"))
+                    continue;
+                accountHolder = row.Split(';')[4].Trim('"');
+                break;
+            }
+
+            var revenues = new List<RevenueEntry>();
+            var begin = false;
+            foreach (var row in csv.Split(new string[] { "\r\n" }, StringSplitOptions.None))
+            {
+                if (!begin)
+                {
+                    if (row.StartsWith("\"Buchungstag\";\"Valuta\";"))
+                        begin = true;
+                    continue;
+                }
+                //check end
+                if (row == String.Empty)
+                    break;
+
+                var columns = row.Split(';').Select(x => x.Trim('"')).ToArray();
+
+                revenues.Add(new RevenueEntry()
+                {
+                    BookingDay = DateTime.Parse(columns[0]),
+                    Valuta = DateTime.Parse(columns[1]),
+                    SoldToPartyOrPayee = columns[2],
+                    IsMeSoldToPartyOrPayee = columns[2] == accountHolder, //TODO Fix is me by validate iban
+                    RecipientOrPayer = columns[3],
+                    IsMeRecipientOrPayer = columns[3] == accountHolder, //TODO Fix is me by validate iban
+                    PurposeOfUse = columns[8],
+                    Revenue = Convert.ToDecimal((columns[12] == "S" ? "-" : "") + columns[11])
+                });
+            }
+
+            return (revenues, accountHolder);
         }
 
         private async Task SwitchToAccountOverview()
         {
             //click Übersicht
             _driver.FindElement(By.CssSelector("li[data-nav=uebersicht]")).Click();
-            
+
             //back to account overview
             await WaitUntilElementIsAvailable(By.XPath("//div[@class='v-scrollable v-table-body-wrapper v-table-body']"));
         }
@@ -156,9 +256,10 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
         }
         public void Dispose()
         {
-            _driver?.Dispose();
-            if(_loginSuceeded)
+            if (_loginSuceeded)
                 Logout();
+            _driver?.Dispose();
+            Directory.Delete(_downloadDirectory, true);
         }
     }
 }
