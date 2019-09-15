@@ -199,45 +199,8 @@ namespace BankingFetcher.Net.Bank.Wüstenrot
             var csv = File.ReadAllText(csvFilePath, Encoding.Default);
             File.Delete(csvFilePath);
 
-            string accountHolder = "";
-            foreach (var row in csv.Split(new string[] { "\r\n" }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (!row.Contains("Kontoinhaber:"))
-                    continue;
-                accountHolder = row.Split(';')[4].Trim('"');
-                break;
-            }
-
-            var revenues = new List<RevenueEntry>();
-            var begin = false;
-            foreach (var row in csv.Split(new string[] { "\r\n" }, StringSplitOptions.None))
-            {
-                if (!begin)
-                {
-                    if (row.StartsWith("\"Buchungstag\";\"Valuta\";"))
-                        begin = true;
-                    continue;
-                }
-                //check end
-                if (row == String.Empty)
-                    break;
-
-                var columns = row.Split(';').Select(x => x.Trim('"')).ToArray();
-
-                revenues.Add(new RevenueEntry()
-                {
-                    BookingDay = DateTime.Parse(columns[0]),
-                    Valuta = DateTime.Parse(columns[1]),
-                    SoldToPartyOrPayee = columns[2],
-                    IsMeSoldToPartyOrPayee = columns[2] == accountHolder, //TODO Fix is me by validate iban
-                    RecipientOrPayer = columns[3],
-                    IsMeRecipientOrPayer = columns[3] == accountHolder, //TODO Fix is me by validate iban
-                    PurposeOfUse = columns[8],
-                    Revenue = Convert.ToDecimal((columns[12] == "S" ? "-" : "") + columns[11])
-                });
-            }
-
-            return (revenues, accountHolder);
+            var parser = new RevenueFileParser(csv);
+            return (parser.GetRevenues(), parser.AccountHolder);
         }
 
         private async Task SwitchToAccountOverview()

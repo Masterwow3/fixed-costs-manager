@@ -10,10 +10,12 @@ namespace BankingFetcher.Net.Test
     {
         public TestBase()
         {
-            var sensitiveConfigFilePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"Config","SensitiveData.json");
+            TestDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "";
+            var sensitiveConfigFilePath = Path.Combine(TestDirectory, "Config","SensitiveData.json");
             SensitiveDataConfig = JsonConvert.DeserializeObject<SensitiveData>(File.ReadAllText(sensitiveConfigFilePath, Encoding.UTF8));
         }
 
+        public string TestDirectory { get; }
         public SensitiveData SensitiveDataConfig { get; }
     }
 }
