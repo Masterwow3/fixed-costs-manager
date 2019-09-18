@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "title": "JSON Schema for my BankingFetcher.Test project",
+
+  "type": "object",
+
+  "properties": {
+    "Wüstenrot": {
+      "Username": "number",
+      "Password": "string"
+    }
+  }
+}

@@ -6,6 +6,7 @@
     <LangVersion>7.3</LangVersion>
     <RazorLangVersion>3.0</RazorLangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
+    <RootNamespace>fixed_costs_manager.Client</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
