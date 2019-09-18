@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using fixed_costs_manager.Shared.BankAccount;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
@@ -15,14 +16,14 @@ using OpenQA.Selenium.Support.UI;
 [assembly: InternalsVisibleTo("BankingFetcher.Standard.Test")]
 namespace BankingFetcher.Standard.Bank.Wüstenrot
 {
-    class WüstenrotParser : IDisposable
+    public class WüstenrotParser : IDisposable
     {
-        private readonly Func<string> _getTan;
+        private readonly Func<Task<string>> _getTan;
         private ChromeDriver _driver;
         private bool _loginSuceeded;
         private readonly string _downloadDirectory;
 
-        public WüstenrotParser(Func<string> getTan)
+        public WüstenrotParser(Func<Task<string>> getTan)
         {
             _getTan = getTan;
             _downloadDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Downloads", Path.GetRandomFileName());
@@ -54,7 +55,7 @@ namespace BankingFetcher.Standard.Bank.Wüstenrot
             _driver.ExecuteChromeCommand("Page.setDownloadBehavior", param);
         }
 
-        public void Login(string user, string password)
+        public async Task Login(string user, string password)
         {
             _driver.Navigate().GoToUrl("https://www.banking-wuestenrotdirect.de/banking-private/entry");
             //fully navigate the dom
@@ -64,12 +65,12 @@ namespace BankingFetcher.Standard.Bank.Wüstenrot
             //You can use any other Input field's(First Name, Last Name etc.) xpath too In bellow given syntax.
             _driver.FindElement(By.Id("xview-anmelden")).Click();
 
-            EnterTan();
+            await EnterTan();
         }
 
-        private void EnterTan()
+        private async Task EnterTan()
         {
-            var tan = _getTan.Invoke()?.Trim();
+            var tan = (await _getTan.Invoke())?.Trim();
             //validate
             if (tan == null || tan.Length != 6)
                 throw new Exception("The tan must consist of 6 numbers");
@@ -185,7 +186,7 @@ namespace BankingFetcher.Standard.Bank.Wüstenrot
 
             _driver.FindElement(By.Id("actSuchen")).Click(); //search
 
-            EnterTan();
+            await EnterTan();
             //navigate to export as csv
             var test = _driver.FindElement(By.XPath("//input[@class='Submitlink ImageButton']"));
             test.Click();

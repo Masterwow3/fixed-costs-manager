@@ -1,4 +1,5 @@
-﻿using System;
+﻿using fixed_costs_manager.Shared.BankAccount;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 

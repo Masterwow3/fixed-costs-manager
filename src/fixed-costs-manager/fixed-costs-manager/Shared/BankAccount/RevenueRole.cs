@@ -1,4 +1,4 @@
-﻿namespace BankingFetcher.Standard.Bank
+﻿namespace fixed_costs_manager.Shared.BankAccount
 {
     public enum RevenueRole
     {

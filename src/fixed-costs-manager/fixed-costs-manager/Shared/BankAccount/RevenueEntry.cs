@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace BankingFetcher.Standard.Bank
+namespace fixed_costs_manager.Shared.BankAccount
 {
     public class RevenueEntry
     {
